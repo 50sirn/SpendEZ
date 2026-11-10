@@ -12,32 +12,47 @@ BUDGET_FILE = DATA_FOLDER / "budgets.csv"
 # Ensure data directory exists
 DATA_FOLDER.mkdir(exist_ok=True)
 
+# Expense database structure
+EXPENSE_COLUMNS = [
+    "transaction_id",
+    "date",
+    "amount",
+    "currency",
+    "category",
+    "description",
+    "report_id"
+]
+
 
 # Load expense records
 def load_expenses():
 
     if EXPENSE_FILE.exists():
-        return pd.read_csv(EXPENSE_FILE)
+        expenses = pd.read_csv(EXPENSE_FILE)
 
-    return pd.DataFrame(columns=[
-        "transaction_id",
-        "date",
-        "amount",
-        "currency",
-        "category",
-        "description"
-    ])
+        if "report_id" not in expenses.columns:
+            expenses["report_id"] = ""
+
+        return expenses
+
+    return pd.DataFrame(columns=EXPENSE_COLUMNS)
 
 
 # Save a new expense
 def add_expense(expense):
 
-    expense_df = pd.DataFrame([expense])
+    expenses = load_expenses()
 
-    expense_df.to_csv(
+    new_expense = {
+        column: expense.get(column, "")
+        for column in EXPENSE_COLUMNS
+    }
+
+    new_row = pd.DataFrame([new_expense])
+    expenses = pd.concat([expenses, new_row], ignore_index=True)
+
+    expenses.to_csv(
         EXPENSE_FILE,
-        mode="a",
-        header=not EXPENSE_FILE.exists(),
         index=False
     )
 
