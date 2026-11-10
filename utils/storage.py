@@ -57,6 +57,62 @@ def add_expense(expense):
     )
 
 
+# Delete an expense using its transaction ID
+def delete_expense(transaction_id):
+
+    expenses = load_expenses()
+
+    if "transaction_id" not in expenses.columns:
+        return False
+
+    original_count = len(expenses)
+
+    expenses = expenses[
+        expenses["transaction_id"].astype(str) != str(transaction_id)
+    ]
+
+    # Check whether a transaction was actually deleted
+    if len(expenses) == original_count:
+        return False
+
+    expenses.to_csv(
+        EXPENSE_FILE,
+        index=False
+    )
+
+    return True
+
+
+# Handle transactions when an expense report is deleted
+def handle_report_expenses(report_id, delete_transactions=False):
+
+    expenses = load_expenses()
+
+    if expenses.empty or "report_id" not in expenses.columns:
+        return 0
+
+    linked_expenses = (
+        expenses["report_id"].fillna("").astype(str)
+        == str(report_id)
+    )
+
+    affected_count = int(linked_expenses.sum())
+
+    if delete_transactions:
+        expenses = expenses[~linked_expenses]
+
+    else:
+        expenses.loc[linked_expenses, "report_id"] = ""
+
+    expenses.to_csv(
+        EXPENSE_FILE,
+        index=False
+    )
+
+    return affected_count
+
+
+
 # Load budget records
 def load_budgets():
 

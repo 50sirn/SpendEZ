@@ -2,12 +2,47 @@
 import streamlit as st
 from datetime import date
 
-from utils.report_storage import load_reports, update_report
-from utils.storage import load_expenses
+from utils.report_storage import load_reports, update_report, delete_report
+from utils.storage import load_expenses, handle_report_expenses
 
 
 def clear_report_search():
     st.session_state.report_search = ""
+
+
+def handle_report_deletion(report_id, delete_transactions):
+
+    try:
+
+        deleted = delete_report(report_id)
+
+        if not deleted:
+            st.session_state.report_delete_result = {
+                "success": False
+            }
+            return
+
+        affected_count = handle_report_expenses(
+            report_id,
+            delete_transactions
+        )
+
+        st.session_state.report_delete_result = {
+            "success": True,
+            "count": affected_count,
+            "transactions_deleted": delete_transactions
+        }
+
+        # Return to the repository listing
+        st.session_state.selected_report_id = None
+        st.session_state.edit_mode = False
+
+    except Exception as error:
+
+        st.session_state.report_delete_result = {
+            "success": False,
+            "error": str(error)
+        }
 
 
 def initialize_edit_form(report, currencies):
@@ -96,6 +131,29 @@ def render_report_repository(currencies):
 
     selected_id = st.session_state.get("selected_report_id")
     reports = load_reports()
+    if "report_delete_result" in st.session_state:
+
+        result = st.session_state.report_delete_result
+
+        if result["success"]:
+
+            if result["transactions_deleted"]:
+                st.toast(
+                    f"Report and {result['count']} linked transactions deleted!",
+                    icon="✅"
+                )
+            else:
+                st.toast(
+                    f"Report deleted! {result['count']} transactions preserved.",
+                    icon="✅"
+                )
+
+        else:
+            st.error(
+                result.get("error", "Could not delete the report.")
+            )
+
+        del st.session_state.report_delete_result
 
     # Individual report view
     if selected_id:
@@ -233,6 +291,35 @@ def render_report_repository(currencies):
             expenses["report_id"].fillna("").astype(str)
             == str(selected_id)
         ].copy()
+
+        st.divider()
+        st.subheader("🗑️ Delete Expense Report")
+
+        st.warning(
+            "Deleting this report is permanent. "
+            "Choose what should happen to its linked transactions."
+        )
+
+        delete_linked = st.checkbox(
+            f"Also permanently delete all {len(report_expenses)} "
+            "transactions linked to this report",
+            key=f"delete_linked_{selected_id}"
+        )
+
+        confirm_delete = st.checkbox(
+            "I confirm that I want to delete this report.",
+            key=f"confirm_report_delete_{selected_id}"
+        )
+
+        st.button(
+            "Delete Report",
+            type="primary",
+            disabled=not confirm_delete,
+            key=f"delete_report_{selected_id}",
+            on_click=handle_report_deletion,
+            args=(selected_id, delete_linked)
+        )
+
 
         st.subheader("Report Summary")
 

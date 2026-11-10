@@ -80,3 +80,32 @@ def update_report(report_id, updates):
         writer.writerows(reports)
 
     return True
+
+
+def delete_report(report_id):
+
+    reports = load_reports()
+
+    original_count = len(reports)
+
+    reports = [
+        report for report in reports
+        if report["report_id"] != report_id
+    ]
+
+    if len(reports) == original_count:
+        return False
+
+    DATA_FOLDER.mkdir(exist_ok=True)
+
+    with open(REPORT_FILE, "w", newline="", encoding="utf-8") as file:
+
+        writer = csv.DictWriter(
+            file,
+            fieldnames=REPORT_FIELDS
+        )
+
+        writer.writeheader()
+        writer.writerows(reports)
+
+    return True
